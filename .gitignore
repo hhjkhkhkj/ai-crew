@@ -1,0 +1,9 @@
+# 密钥不进仓库
+config.py
+
+# Python
+__pycache__/
+*.pyc
+
+# 运行日志
+_*.log
