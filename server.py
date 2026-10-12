@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
-"""AI 群聊 · 后端   启动:  py server.py"""
+"""明辨 · 后端   启动:  py server.py
+
+    MODE = "council"  → 会商:几个 agent 商量出个结论
+    MODE = "debate"   → 辩论:判据 → 独立提案 → 交叉盘问 → 核证 → 裁决
+"""
+
 import json
 import queue
 import threading
@@ -7,33 +12,34 @@ import time
 import traceback
 from pathlib import Path
 
-import requests
 import uvicorn
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, StreamingResponse
 
 import config
+import debate
+import llm
 
 BASE = Path(__file__).parent
 app = FastAPI()
 
 
 # ============================================================
-# 群聊状态:一份历史 + 一堆 SSE 订阅者
+# 状态:一份历史 + 一堆 SSE 订阅者
 # ============================================================
 class Hub:
     def __init__(self):
         self.lock = threading.Lock()
-        self.history = []      # 所有消息
-        self.clients = []      # 每个打开网页的人一个队列
-        self.busy = False      # 是否正在开会
+        self.history = []
+        self.clients = []
+        self.busy = False
 
     def push(self, msg):
         with self.lock:
-            msg["id"] = len(self.history)          # 给每条消息编号,网页那边靠它去重
+            msg["id"] = len(self.history)
             msg["ts"] = time.strftime("%H:%M")
             self.history.append(msg)
-            subs = list(self.clients)              # 复制一份,别在锁里调用别人
+            subs = list(self.clients)
         for q in subs:
             q.put(msg)
 
@@ -53,7 +59,6 @@ class Hub:
                 self.clients.remove(q)
 
     def try_lock_busy(self):
-        """没人开会就占住,返回 True。"""
         with self.lock:
             if self.busy:
                 return False
@@ -69,9 +74,38 @@ hub = Hub()
 
 
 # ============================================================
-# 拼提示词 —— 每个 agent 都能看到到目前为止的整份聊天记录
+# 会商模式
 # ============================================================
-def build_system_prompt(agent, goal, history, round_no):
+def meeting(goal):
+    try:
+        hub.push({"who": "system", "text": "会议开始:" + goal})
+        for rnd in range(1, config.MAX_ROUNDS + 1):
+            for agent in config.AGENTS:
+                hub.push({"who": "typing", "name": agent["name"]})
+                sp = _council_prompt(agent, goal, hub.history, rnd)
+                text = llm.chat(config.COUNCIL_PROVIDER, sp,
+                                "轮到你发言了,说:", temperature=0.9,
+                                max_tokens=2000, need_json=False)
+                for prefix in (agent["name"] + ":", f"【{agent['name']}】"):
+                    if text.startswith(prefix):
+                        text = text[len(prefix):].strip()
+                want_end = "[散会]" in text
+                text = text.replace("[散会]", "").strip()
+                hub.push({"who": "agent", "name": agent["name"],
+                          "emoji": agent["emoji"], "color": agent["color"],
+                          "text": text})
+                if want_end:
+                    hub.push({"who": "system", "text": "散会"})
+                    return
+        hub.push({"who": "system", "text": f"聊满 {config.MAX_ROUNDS} 轮,强制散会"})
+    except Exception as e:
+        traceback.print_exc()
+        hub.push({"who": "error", "text": f"出错了:{e}"})
+    finally:
+        hub.release()
+
+
+def _council_prompt(agent, goal, history, round_no):
     others = "、".join(a["name"] for a in config.AGENTS if a["name"] != agent["name"])
     lines = []
     for m in history:
@@ -79,10 +113,7 @@ def build_system_prompt(agent, goal, history, round_no):
             lines.append(f"老板:{m['text']}")
         elif m["who"] == "agent":
             lines.append(f"{m['name']}:{m['text']}")
-        elif m["who"] == "system":
-            lines.append(f"(系统:{m['text']})")
     transcript = "\n".join(lines) or "(还没人说话)"
-
     return (
         f"你们是一个小团队,在一个群里开会商量事情。\n"
         f"你是「{agent['name']}」。{agent['persona']}\n"
@@ -100,72 +131,15 @@ def build_system_prompt(agent, goal, history, round_no):
     )
 
 
-def key_ready():
-    """密钥填了没 —— 没填就别去调接口,不然只会报一堆看不懂的错。"""
-    k = (config.API_KEY or "").strip()
-    return len(k) > 20 and "填" not in k
-
-
-def call_llm(system_prompt, goal):
-    r = requests.post(
-        config.API_BASE + "/chat/completions",
-        headers={
-            "Authorization": "Bearer " + config.API_KEY,
-            "Content-Type": "application/json",
-        },
-        json={
-            "model": config.MODEL,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": "轮到你发言了,说:"},
-            ],
-            "temperature": 0.9,
-            "max_tokens": 400,
-        },
-        timeout=90,
-    )
-    if r.status_code != 200:
-        raise RuntimeError(f"接口返回 {r.status_code}: {r.text[:200]}")
-    return r.json()["choices"][0]["message"]["content"].strip()
-
-
 # ============================================================
-# 开会 —— 在后台线程里按轮次跑
+# 辩论模式
 # ============================================================
-def meeting(goal):
+def run_debate(goal):
     try:
-        hub.push({"who": "system", "text": "会议开始:" + goal})
-        for rnd in range(1, config.MAX_ROUNDS + 1):
-            for agent in config.AGENTS:
-                hub.push({"who": "typing", "name": agent["name"]})
-
-                sp = build_system_prompt(agent, goal, hub.history, rnd)
-                text = call_llm(sp, goal)
-
-                # 去掉模型偶尔自己加的前缀
-                for prefix in (agent["name"] + ":", f"【{agent['name']}】", f"[{agent['name']}]"):
-                    if text.startswith(prefix):
-                        text = text[len(prefix):].strip()
-
-                want_end = "[散会]" in text
-                text = text.replace("[散会]", "").strip()
-
-                hub.push({
-                    "who": "agent",
-                    "name": agent["name"],
-                    "emoji": agent["emoji"],
-                    "color": agent["color"],
-                    "text": text,
-                })
-
-                if want_end:
-                    hub.push({"who": "system", "text": "散会"})
-                    return
-
-        hub.push({"who": "system", "text": f"聊满 {config.MAX_ROUNDS} 轮,强制散会"})
+        debate.run(goal, hub)
     except Exception as e:
         traceback.print_exc()
-        hub.push({"who": "error", "text": f"出错了:{e}"})
+        hub.push({"who": "error", "text": f"辩论中断:{e}"})
     finally:
         hub.release()
 
@@ -180,7 +154,21 @@ def index():
 
 @app.get("/agents")
 def agents():
+    if config.MODE == "debate":
+        return [{"name": d["name"], "emoji": "⚖", "color": "#6ea8fe",
+                 "persona": d["angle"]} for d in config.DEBATERS]
     return config.AGENTS
+
+
+@app.get("/mode")
+def mode():
+    return {
+        "mode": config.MODE,
+        "providers": llm.available(),
+        "judge": config.JUDGE.get("provider"),
+        "verifier": config.VERIFIER.get("provider"),
+        "warnings": llm.preflight(),
+    }
 
 
 @app.get("/stream")
@@ -210,19 +198,21 @@ def say(payload: dict):
     text = (payload.get("text") or "").strip()
     if not text:
         return {"ok": False, "msg": "空的"}
-    if not key_ready():
-        return {"ok": False, "msg": "还没填 API Key:打开 config.py 第 5 行填上,重启一下"}
+    if not llm.available():
+        return {"ok": False, "msg": "还没填 API Key:打开 config.py 填上,重启一下"}
     if not hub.try_lock_busy():
-        return {"ok": False, "msg": "还在开会,等这轮聊完"}
+        return {"ok": False, "msg": "上一场还没结束,等一下"}
+
     hub.push({"who": "user", "text": text})
-    threading.Thread(target=meeting, args=(text,), daemon=True).start()
+    target = run_debate if config.MODE == "debate" else meeting
+    threading.Thread(target=target, args=(text,), daemon=True).start()
     return {"ok": True}
 
 
 @app.post("/reset")
 def reset():
     if hub.busy:
-        return {"ok": False, "msg": "还在开会,等这轮聊完"}
+        return {"ok": False, "msg": "还在跑,等它结束"}
     with hub.lock:
         hub.history.clear()
     hub.push({"who": "system", "text": "记录已清空"})
@@ -230,7 +220,8 @@ def reset():
 
 
 if __name__ == "__main__":
-    if not key_ready():
-        print("!! 还没填 API Key —— 打开 config.py 第 5 行填上,然后重启")
+    print(f"模式: {config.MODE}")
+    for w in llm.preflight():
+        print("!! " + w)
     print(f"网页地址: http://127.0.0.1:{config.PORT}")
     uvicorn.run(app, host="127.0.0.1", port=config.PORT)

@@ -3,142 +3,154 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>AI 群聊</title>
+<title>明辨 · 多 Agent 举证核证</title>
 <style>
   :root{
-    --bg:#0b0d12;
-    --side:#11141b;
-    --main:#0e1116;
-    --line:rgba(255,255,255,.07);
-    --text:#e6e9ef;
-    --dim:#8b93a7;
+    --bg:#0b0d12; --side:#11141b; --main:#0e1116;
+    --line:rgba(255,255,255,.07); --text:#e6e9ef; --dim:#8b93a7;
     --blue:#2b6cf6;
+    --l0:#7d8598; --l1:#d8a84a; --l2:#5b9dff; --l3:#3ddc84;
+    --ok:#3ddc84; --bad:#ff7a7a; --unk:#7d8598;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
-  body{
-    background:var(--bg);color:var(--text);
-    font:15px/1.6 -apple-system,"Segoe UI","Microsoft YaHei",system-ui,sans-serif;
-    overflow:hidden;
-  }
+  body{background:var(--bg);color:var(--text);
+    font:15px/1.65 -apple-system,"Segoe UI","Microsoft YaHei",system-ui,sans-serif;
+    overflow:hidden}
   .app{display:flex;height:100dvh}
 
-  /* ---------- 左栏 ---------- */
-  .side{
-    width:210px;flex:0 0 210px;background:var(--side);
-    border-right:1px solid var(--line);
-    display:flex;flex-direction:column;padding:16px 12px;
-  }
-  .brand{font-size:15px;font-weight:600;letter-spacing:.02em;padding:4px 8px 18px}
-  .brand small{display:block;font-weight:400;font-size:11px;color:var(--dim);letter-spacing:.06em;margin-top:2px}
-  .side-label{font-size:11px;color:var(--dim);letter-spacing:.1em;padding:0 8px 8px}
-  .member{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:9px;cursor:default}
+  .side{width:220px;flex:0 0 220px;background:var(--side);
+    border-right:1px solid var(--line);display:flex;flex-direction:column;padding:16px 12px}
+  .brand{font-size:15px;font-weight:600;padding:4px 8px 16px}
+  .brand small{display:block;font-weight:400;font-size:11px;color:var(--dim);
+    letter-spacing:.06em;margin-top:2px}
+  .side-label{font-size:11px;color:var(--dim);letter-spacing:.1em;padding:12px 8px 8px}
+  .member{display:flex;gap:9px;padding:7px 8px;border-radius:9px;align-items:flex-start}
   .member:hover{background:rgba(255,255,255,.04)}
-  .avatar{
-    width:30px;height:30px;flex:0 0 30px;border-radius:50%;
-    display:grid;place-items:center;font-size:15px;
-    background:rgba(255,255,255,.06);
-  }
-  .member b{font-weight:500;font-size:14px}
-  .member i{font-style:normal;font-size:11px;color:var(--dim);margin-left:auto}
-  .dot{width:6px;height:6px;border-radius:50%;background:#3ddc84;box-shadow:0 0 8px #3ddc84aa}
+  .member b{font-weight:500;font-size:14px;display:block}
+  .member i{font-style:normal;font-size:11px;color:var(--dim);line-height:1.45;display:block;margin-top:2px}
+  .seat{width:22px;height:22px;flex:0 0 22px;border-radius:6px;display:grid;place-items:center;
+    font-size:12px;font-weight:600;background:rgba(255,255,255,.07);margin-top:2px}
   .spacer{flex:1}
-  .reset{
-    border:1px solid var(--line);background:transparent;color:var(--dim);
-    padding:8px;border-radius:9px;font:inherit;font-size:13px;cursor:pointer;
-  }
+  .reset{border:1px solid var(--line);background:transparent;color:var(--dim);
+    padding:8px;border-radius:9px;font:inherit;font-size:13px;cursor:pointer}
   .reset:hover{color:var(--text);border-color:rgba(255,255,255,.2)}
 
-  /* ---------- 主区 ---------- */
+  .legend{font-size:11px;color:var(--dim);line-height:1.9;padding:6px 8px}
+  .legend span{display:inline-block;width:7px;height:7px;border-radius:2px;margin-right:6px}
+
   .main{flex:1;display:flex;flex-direction:column;background:var(--main);min-width:0}
-  header{
-    height:56px;flex:0 0 56px;display:flex;align-items:center;gap:10px;
-    padding:0 20px;border-bottom:1px solid var(--line);
-  }
+  header{height:56px;flex:0 0 56px;display:flex;align-items:center;gap:10px;
+    padding:0 20px;border-bottom:1px solid var(--line)}
   .room{font-weight:600;font-size:15px}
-  .status{
-    font-size:12px;color:var(--dim);padding:3px 9px;border-radius:20px;
-    background:rgba(255,255,255,.05);
-  }
+  .tag{font-size:11px;padding:3px 9px;border-radius:20px;background:rgba(255,255,255,.06);
+    color:var(--dim)}
+  .tag.debate{color:#9dc0ff;background:rgba(43,108,246,.16)}
+  .tag.council{color:#8ef0b4;background:rgba(61,220,132,.14)}
+  .status{font-size:12px;color:var(--dim);padding:3px 9px;border-radius:20px;
+    background:rgba(255,255,255,.05);margin-left:auto}
   .status.live{color:#8ef0b4;background:rgba(61,220,132,.12)}
 
-  .feed{flex:1;overflow-y:auto;padding:22px 20px 8px;scroll-behavior:smooth}
+  .feed{flex:1;overflow-y:auto;padding:20px 20px 8px}
   .feed::-webkit-scrollbar{width:8px}
   .feed::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:8px}
 
-  .row{display:flex;gap:10px;margin-bottom:16px;align-items:flex-start}
-  .row.me{flex-direction:row-reverse}
-  .row .avatar{width:34px;height:34px;flex:0 0 34px;font-size:16px}
-  .body{max-width:min(620px,74%)}
-  .who{font-size:12px;color:var(--dim);margin:0 4px 4px}
-  .row.me .who{text-align:right}
-  .bubble{
-    padding:10px 14px;border-radius:14px;white-space:pre-wrap;word-break:break-word;
-    background:rgba(255,255,255,.045);border:1px solid var(--line);
-  }
-  .row.me .bubble{
-    background:linear-gradient(180deg,#3577ff,#2b62e0);border-color:transparent;
-    border-bottom-right-radius:5px;
-  }
-  .row:not(.me) .bubble{border-bottom-left-radius:5px}
+  /* 阶段条 */
+  .phase{display:flex;align-items:center;gap:10px;margin:26px 0 14px}
+  .phase .n{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;
+    font-size:12px;font-weight:700;background:rgba(43,108,246,.2);color:#9dc0ff;flex:0 0 22px}
+  .phase b{font-size:14px}
+  .phase i{font-style:normal;font-size:12px;color:var(--dim)}
+  .phase:after{content:"";flex:1;height:1px;background:var(--line)}
 
-  .sys{text-align:center;margin:14px 0}
-  .sys span{
-    font-size:12px;color:#7d8598;background:rgba(255,255,255,.04);
-    padding:4px 12px;border-radius:20px;
-  }
+  .sys{text-align:center;margin:12px 0}
+  .sys span{font-size:12px;color:#7d8598;background:rgba(255,255,255,.04);
+    padding:4px 12px;border-radius:20px}
   .sys.err span{color:#ff9a9a;background:rgba(255,80,80,.1)}
+  .sys.warn span{color:#ffcf7a;background:rgba(216,168,74,.12);text-align:left;
+    display:inline-block;max-width:640px}
 
-  .dots{display:inline-flex;gap:3px;margin-left:6px;vertical-align:middle}
-  .dots i{width:4px;height:4px;border-radius:50%;background:currentColor;opacity:.35;
-          animation:bl 1.2s infinite}
-  .dots i:nth-child(2){animation-delay:.18s}
-  .dots i:nth-child(3){animation-delay:.36s}
-  @keyframes bl{0%,60%,100%{opacity:.25}30%{opacity:1}}
+  /* 卡片 */
+  .card{border:1px solid var(--line);border-radius:14px;padding:14px 16px;
+    margin-bottom:14px;background:rgba(255,255,255,.022)}
+  .card h4{font-size:13px;font-weight:600;margin-bottom:8px;display:flex;
+    align-items:center;gap:8px}
+  .card .concl{font-size:15px;margin-bottom:10px}
+  .card .sub{font-size:12px;color:var(--dim);margin-top:8px}
+  ul.ev{list-style:none;display:flex;flex-direction:column;gap:7px;margin-top:6px}
+  ul.ev li{font-size:13px;line-height:1.6;padding-left:2px}
+  ul.ev .src{font-size:11.5px;color:var(--dim);display:block;margin-top:2px;
+    font-family:Consolas,Menlo,monospace;word-break:break-all}
+
+  .lv{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:5px;
+    letter-spacing:.02em;flex:0 0 auto}
+  .lv-L0{color:var(--l0);background:rgba(125,133,152,.16)}
+  .lv-L1{color:var(--l1);background:rgba(216,168,74,.16)}
+  .lv-L2{color:var(--l2);background:rgba(91,157,255,.16)}
+  .lv-L3{color:var(--l3);background:rgba(61,220,132,.16)}
+
+  .vf{font-size:11px;padding:2px 7px;border-radius:5px;margin-left:6px}
+  .vf-verified{color:var(--ok);background:rgba(61,220,132,.14)}
+  .vf-refuted{color:var(--bad);background:rgba(255,122,122,.14)}
+  .vf-unverifiable{color:var(--unk);background:rgba(125,133,152,.16)}
+
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}
+  .col{background:rgba(255,255,255,.03);border-radius:10px;padding:10px 12px}
+  .col b{font-size:12px}
+  .col.pros b{color:var(--ok)}
+  .col.cons b{color:var(--bad)}
+  .col ul{list-style:none;margin-top:6px}
+  .col li{font-size:13px;margin-bottom:5px;padding-left:12px;position:relative;line-height:1.55}
+  .col li:before{content:"–";position:absolute;left:0;color:var(--dim)}
+
+  /* 独立性 */
+  .groups{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+  .grp{display:flex;align-items:center;gap:10px;font-size:12.5px;
+    background:rgba(255,255,255,.03);padding:7px 11px;border-radius:9px}
+  .grp .src{font-family:Consolas,Menlo,monospace;color:var(--dim);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+  .grp .n{font-weight:700;font-size:12px}
+  .grp.merged{border-left:2px solid var(--l1)}
+  .grp.solo{border-left:2px solid var(--l3)}
+
+  /* 裁决三堆 */
+  .piles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}
+  .pile{border-radius:10px;padding:11px 12px;background:rgba(255,255,255,.03)}
+  .pile b{font-size:12px;display:block;margin-bottom:7px}
+  .pile.confirmed b{color:var(--ok)}
+  .pile.refuted b{color:var(--bad)}
+  .pile.unverifiable b{color:var(--unk)}
+  .pile ul{list-style:none}
+  .pile li{font-size:12.5px;color:#c3cadb;margin-bottom:5px;line-height:1.5}
 
   .empty{color:var(--dim);text-align:center;padding:56px 0 20px}
   .empty h2{font-size:16px;font-weight:500;color:#c3cadb;margin-bottom:6px}
-  .empty p{font-size:13px;margin-bottom:22px}
+  .empty p{font-size:13px;margin-bottom:22px;line-height:1.8}
   .chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;padding:0 10px}
-  .chip{
-    border:1px solid var(--line);background:rgba(255,255,255,.03);color:#b8c0d2;
-    padding:8px 14px;border-radius:20px;font:inherit;font-size:13px;cursor:pointer;
-    transition:.15s;
-  }
+  .chip{border:1px solid var(--line);background:rgba(255,255,255,.03);color:#b8c0d2;
+    padding:8px 14px;border-radius:20px;font:inherit;font-size:13px;cursor:pointer;transition:.15s}
   .chip:hover{background:rgba(255,255,255,.08);color:#fff;border-color:rgba(255,255,255,.18)}
 
-  /* ---------- 输入 ---------- */
-  .composer{
-    flex:0 0 auto;display:flex;gap:10px;align-items:flex-end;
-    padding:12px 20px 18px;border-top:1px solid var(--line);
-  }
-  textarea{
-    flex:1;resize:none;max-height:140px;min-height:44px;
-    background:rgba(255,255,255,.05);border:1px solid var(--line);
-    border-radius:12px;padding:11px 14px;color:var(--text);
-    font:inherit;font-size:14px;line-height:1.5;outline:none;
-  }
+  .composer{flex:0 0 auto;display:flex;gap:10px;align-items:flex-end;
+    padding:12px 20px 18px;border-top:1px solid var(--line)}
+  textarea{flex:1;resize:none;max-height:140px;min-height:44px;
+    background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:12px;
+    padding:11px 14px;color:var(--text);font:inherit;font-size:14px;line-height:1.5;outline:none}
   textarea:focus{border-color:rgba(90,130,255,.6);background:rgba(90,130,255,.06)}
   textarea::placeholder{color:#666e80}
-  button.send{
-    height:44px;padding:0 20px;border:none;border-radius:12px;cursor:pointer;
-    background:var(--blue);color:#fff;font:inherit;font-size:14px;font-weight:500;
-    transition:.15s;
-  }
+  button.send{height:44px;padding:0 20px;border:none;border-radius:12px;cursor:pointer;
+    background:var(--blue);color:#fff;font:inherit;font-size:14px;font-weight:500}
   button.send:hover:not(:disabled){background:#3d7bff}
   button.send:disabled{opacity:.4;cursor:not-allowed}
 
-  .toast{
-    position:fixed;left:50%;bottom:90px;transform:translateX(-50%);
-    background:#232838;border:1px solid var(--line);color:#e6e9ef;
-    padding:9px 16px;border-radius:10px;font-size:13px;
-    opacity:0;pointer-events:none;transition:.25s;
-  }
+  .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);
+    background:#232838;border:1px solid var(--line);color:#e6e9ef;padding:9px 16px;
+    border-radius:10px;font-size:13px;opacity:0;pointer-events:none;transition:.25s}
   .toast.on{opacity:1}
 
-  @media (max-width:640px){
+  @media (max-width:820px){
     .side{display:none}
-    .body{max-width:86%}
+    .cols,.piles{grid-template-columns:1fr}
     .feed{padding:16px 14px 8px}
     .composer{padding:10px 14px 14px}
     header{padding:0 14px}
@@ -149,199 +161,286 @@
 <div class="app">
 
   <aside class="side">
-    <div class="brand">AI 群聊<small>AGENT CREW</small></div>
-    <div class="side-label">成员</div>
+    <div class="brand">明辨<small id="modeLabel">…</small></div>
+    <div class="side-label">席位</div>
     <div id="members"></div>
     <div class="spacer"></div>
+    <div class="side-label">证据等级</div>
+    <div class="legend">
+      <div><span style="background:var(--l0)"></span>L0 断言 — 不算论据</div>
+      <div><span style="background:var(--l1)"></span>L1 引用 — 待核,不给分</div>
+      <div><span style="background:var(--l2)"></span>L2 可核验 — 送去验</div>
+      <div><span style="background:var(--l3)"></span>L3 已核验 — 才算事实</div>
+    </div>
     <button class="reset" id="reset">清空记录</button>
   </aside>
 
   <main class="main">
     <header>
-      <div class="room">AI 会议室</div>
+      <div class="room">明辨</div>
+      <div class="tag" id="modeTag">…</div>
       <div class="status" id="status">待命</div>
     </header>
 
     <div class="feed" id="feed">
       <div class="empty" id="empty">
-        <h2>给个目标,让他们自己商量</h2>
-        <p>发一句话,3 个 agent 会轮流发言,聊完或喊散会自动停。</p>
+        <h2>给个议题,让它们拿证据吵</h2>
+        <p>判据 → 独立提案 → 交叉盘问 → 核证 → 裁决<br>
+           结论由证据质量决定,不由谁说得漂亮决定。</p>
         <div class="chips">
-          <button class="chip">你俩商量一下谁是老大</button>
-          <button class="chip">下个月要上线一个算命网站,先把活分了</button>
-          <button class="chip">这个 bug 到底该谁修</button>
-          <button class="chip">帮我定一下这周学什么</button>
+          <button class="chip">开源模型现在能不能追上闭源?</button>
+          <button class="chip">Agent 该不该有写文件和跑命令的权限?</button>
+          <button class="chip">大模型一路降价,对我们这种小团队是好事吗?</button>
+          <button class="chip">现在入场做 AI 应用还有机会吗?</button>
         </div>
       </div>
     </div>
 
     <div class="composer">
-      <textarea id="input" rows="1" placeholder="给个目标,回车开工(Shift+回车换行)"></textarea>
-      <button class="send" id="send">发送</button>
+      <textarea id="input" rows="1" placeholder="给个议题,回车开辩(Shift+回车换行)"></textarea>
+      <button class="send" id="send">开辩</button>
     </div>
   </main>
 </div>
 <div class="toast" id="toast"></div>
 
 <script>
-const feed    = document.getElementById('feed');
-const empty   = document.getElementById('empty');
-const input   = document.getElementById('input');
-const sendBtn = document.getElementById('send');
-const statusEl= document.getElementById('status');
-const membersEl = document.getElementById('members');
+const feed=document.getElementById('feed'), empty=document.getElementById('empty'),
+      input=document.getElementById('input'), sendBtn=document.getElementById('send'),
+      statusEl=document.getElementById('status'), membersEl=document.getElementById('members');
+let AGENTS=[], MODE='council';
+const seen=new Set(), typingIds={};
 
-let AGENTS = [];
-const seen = new Set();       // 消息去重(SSE 重连会重放历史)
-let typingRow = null;         // 当前"正在输入"那行
-let typingTimer = null, typingStart = 0, typingName = '';
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const findAgent=n=>AGENTS.find(a=>a.name===n)||{color:'#8899bb',emoji:'·'};
 
-const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-
-// ---------- 成员列表 ----------
-fetch('/agents').then(r => r.json()).then(list => {
-  AGENTS = list;
-  membersEl.innerHTML = list.map(a => `
+fetch('/mode').then(r=>r.json()).then(m=>{
+  MODE=m.mode;
+  document.getElementById('modeLabel').textContent = m.mode==='debate'?'辩论模式':'会商模式';
+  const t=document.getElementById('modeTag');
+  t.textContent = m.mode==='debate'?'辩论':'会商';
+  t.className='tag '+(m.mode==='debate'?'debate':'council');
+});
+fetch('/agents').then(r=>r.json()).then(list=>{
+  AGENTS=list;
+  membersEl.innerHTML=list.map((a,i)=>`
     <div class="member">
-      <div class="avatar" style="background:${a.color}22;box-shadow:inset 0 0 0 1px ${a.color}55">${a.emoji}</div>
-      <b>${esc(a.name)}</b><span class="dot"></span>
+      <div class="seat" style="color:${a.color}">${String.fromCharCode(65+i)}</div>
+      <div><b>${esc(a.name)}</b><i>${esc(a.persona||'')}</i></div>
     </div>`).join('');
 });
 
-const findAgent = name => AGENTS.find(a => a.name === name) || {color:'#8899bb', emoji:'🤖'};
+const atBottom=()=>feed.scrollHeight-feed.scrollTop-feed.clientHeight<160;
+function toBottom(force){ if(force||atBottom()) feed.scrollTop=feed.scrollHeight; }
 
-// ---------- 渲染 ----------
-function atBottom(){
-  return feed.scrollHeight - feed.scrollTop - feed.clientHeight < 120;
-}
-function toBottom(force){
-  if (force || atBottom()) feed.scrollTop = feed.scrollHeight;
-}
-
-function addMsg(m){
-  if (m.id !== undefined){
-    if (seen.has(m.id)) return false;
-    seen.add(m.id);
-  }
-  empty.style.display = 'none';
-  const stick = atBottom();
-
-  let el;
-  if (m.who === 'system' || m.who === 'error'){
-    el = document.createElement('div');
-    el.className = 'sys' + (m.who === 'error' ? ' err' : '');
-    el.innerHTML = `<span>${esc(m.text)}</span>`;
-  } else {
-    const me = m.who === 'user';
-    const a  = me ? null : findAgent(m.name);
-    el = document.createElement('div');
-    el.className = 'row' + (me ? ' me' : '');
-    el.innerHTML = `
-      ${me ? '' : `<div class="avatar" style="background:${a.color}22;box-shadow:inset 0 0 0 1px ${a.color}55">${a.emoji}</div>`}
-      <div class="body">
-        <div class="who">${esc(me ? '你' : m.name)} · ${esc(m.ts || '')}</div>
-        <div class="bubble" ${me ? '' : `style="border-left:2px solid ${a.color}77"`}>${esc(m.text)}</div>
-      </div>`;
-  }
+function mount(el,force){
+  empty.style.display='none';
+  const stick=atBottom();
   feed.appendChild(el);
-  toBottom(stick || m.who === 'user');
-  return true;
+  toBottom(force||stick);
 }
 
-// ---------- 正在输入 ----------
-function showTyping(name){
-  typingName = name;
-  if (!typingRow){
-    const a = findAgent(name);
-    typingRow = document.createElement('div');
-    typingRow.className = 'row';
-    typingRow.innerHTML = `
-      <div class="avatar" style="background:${a.color}22;box-shadow:inset 0 0 0 1px ${a.color}55">${a.emoji}</div>
-      <div class="body">
-        <div class="who">${esc(name)} · 正在想</div>
-        <div class="bubble" style="color:${a.color}">思考中 <span id="secs">0s</span>
-          <span class="dots"><i></i><i></i><i></i></span></div>
-      </div>`;
-    feed.appendChild(typingRow);
-    toBottom(true);
-    typingStart = Date.now();
-    typingTimer = setInterval(() => {
-      const s = document.getElementById('secs');
-      if (s) s.textContent = Math.floor((Date.now() - typingStart) / 1000) + 's';
-    }, 1000);
-  }
+function addSys(text,cls=''){
+  mount(Object.assign(document.createElement('div'),
+    {className:'sys '+cls,innerHTML:`<span>${esc(text)}</span>`}));
 }
-function clearTyping(){
-  if (typingTimer) clearInterval(typingTimer);
-  typingTimer = null;
-  if (typingRow){ typingRow.remove(); typingRow = null; }
+function addPhase(n,title,note){
+  const el=document.createElement('div'); el.className='phase';
+  el.innerHTML=`<div class="n">${n}</div><b>${esc(title)}</b><i>${esc(note||'')}</i>`;
+  mount(el,false);
+}
+function lvBadge(l){
+  const name={L0:'断言',L1:'引用',L2:'可核验',L3:'已核验'}[l]||l;
+  return `<span class="lv lv-${l}">${l} ${name}</span>`;
+}
+function evList(items){
+  if(!items||!items.length) return '<div class="sub">(没给证据)</div>';
+  return '<ul class="ev">'+items.map(e=>{
+    let vf='';
+    if(e.verify&&e.verify.status){
+      const txt={verified:'已核验',refuted:'被推翻',unverifiable:'无法核查'}[e.verify.status]||e.verify.status;
+      vf=`<span class="vf vf-${e.verify.status}">${txt}</span>`;
+    }
+    const nt = e.note ? `<span class="vf vf-unverifiable">${esc(e.note)}</span>` : '';
+    return `<li>${lvBadge(e.level)}${vf}${nt}
+      <div style="margin-top:4px">${esc(e.what)}</div>
+      ${e.source?`<span class="src">${esc(e.source)}</span>`:''}</li>`;
+  }).join('')+'</ul>';
+}
+
+function render(m){
+  if(m.id!==undefined){ if(seen.has(m.id))return; seen.add(m.id); }
+  switch(m.who){
+    case 'user':
+      mount(Object.assign(document.createElement('div'),{className:'sys',
+        innerHTML:`<span>议题:${esc(m.text)}</span>`}),true); break;
+
+    case 'system': addSys(m.text); break;
+    case 'error':  addSys(m.text,'err'); break;
+    case 'warn':   addSys(m.text,'warn'); break;
+
+    case 'tool': {
+      const q = (m.args && m.args.query) ? m.args.query : JSON.stringify(m.args||{});
+      addSys(`▸ ${m.label} 自己去搜「${q}」${m.empty?' —— 没找到':''}`);
+      break;
+    }
+
+    case 'phase':  addPhase(m.n,m.title,m.note); break;
+
+    case 'typing': {
+      const a=findAgent(m.name); const id='t'+m.id;
+      typingIds[id]=true;
+      const el=document.createElement('div'); el.className='row'; el.id=id;
+      el.innerHTML=`<div class="sys" style="color:${a.color}">${esc(m.name)} 思考中…</div>`;
+      mount(el,true); break;
+    }
+
+    case 'criteria': {
+      const c=m.data||{};
+      const el=document.createElement('div'); el.className='card';
+      el.innerHTML=`<h4>判据(全场共用,中途不许改)</h4>
+        <ul class="ev">${(c.criteria||[]).map(x=>
+          `<li><b>${esc(x.name)}</b> — ${esc(x.desc)}</li>`).join('')}</ul>
+        ${c.background?`<div class="sub">背景:${esc(c.background)}</div>`:''}`;
+      mount(el,false); break;
+    }
+
+    case 'pool': {
+      const el=document.createElement('div'); el.className='card';
+      el.innerHTML=`<h4>证据池 · 本地 AIHOT 检索</h4>
+        <div class="sub">这些是真抓过的文章,地址验证器能打开</div>
+        <ul class="ev">${(m.items||[]).map(it=>`
+          <li>${esc(it.title)}
+            <span class="src">${esc(it.source)} ${esc(it.published)}</span>
+            <span class="src">${esc(it.url)}</span></li>`).join('')}</ul>`;
+      mount(el,false); break;
+    }
+
+    case 'proposal': {
+      Object.keys(typingIds).forEach(k=>document.getElementById(k)?.remove());
+      const el=document.createElement('div'); el.className='card';
+      el.innerHTML=`<h4><span class="lv lv-L2" style="color:#9dc0ff;background:rgba(43,108,246,.16)">
+          提案 ${esc(m.label)}</span> ${esc(m.seat)} · 置信度 ${esc(m.confidence)}
+        </h4>
+        <div class="concl">${esc(m.conclusion)}</div>
+        ${evList(m.evidence)}
+        ${m.checked&&m.checked.length?`<div class="sub">看过:${esc(m.checked.join(' / '))}</div>`:''}
+        ${m.unknowns&&m.unknowns.length?`<div class="sub">不知道:${esc(m.unknowns.join(' / '))}</div>`:''}`;
+      mount(el,false); break;
+    }
+
+    case 'critique': {
+      const el=document.createElement('div'); el.className='card';
+      const cs=(m.critiques||[]).map(c=>`
+        <div style="margin-bottom:10px">
+          <div class="sub" style="margin:0 0 6px">对提案 ${esc(c.target)}</div>
+          <div class="cols">
+            <div class="col pros"><b>pros · 它哪里强</b>
+              <ul>${(c.pros||[]).map(x=>`<li>${esc(x)}</li>`).join('')||'<li>(没说)</li>'}</ul></div>
+            <div class="col cons"><b>cons · 它哪里会崩</b>
+              <ul>${(c.cons||[]).map(x=>`<li>${esc(x)}</li>`).join('')||'<li>(没说)</li>'}</ul></div>
+          </div>
+        </div>`).join('');
+      el.innerHTML=`<h4>第 ${m.round} 轮 · 提案 ${esc(m.label)} 的盘问
+          ${m.revised?'<span class="vf vf-verified">改了立场</span>':'<span class="vf vf-unverifiable">未改</span>'}
+        </h4>${cs}
+        ${m.revised&&m.revised_reason?`<div class="sub">改口理由:${esc(m.revised_reason)}</div>`:''}
+        ${m.new_evidence&&m.new_evidence.length?
+          `<div class="sub" style="margin-top:10px">引入的新证据</div>${evList(m.new_evidence)}`:''}`;
+      mount(el,false); break;
+    }
+
+    case 'independence': {
+      const el=document.createElement('div'); el.className='card';
+      el.innerHTML=`<h4>独立性校验(第一层 · 纯代码判同源)</h4>
+        <div class="groups">${(m.report||[]).map(g=>`
+          <div class="grp ${g.merged?'merged':'solo'}">
+            <span class="n">${g.merged?`×${g.count} 合并`:'独立'}</span>
+            <span class="src">${esc(g.source)}</span>
+            <span style="color:var(--dim)">权重 ${g.weight}</span>
+          </div>`).join('')}</div>
+        <div class="sub">证据总分 ${m.score} · ${esc(m.note||'')}</div>`;
+      mount(el,false); break;
+    }
+
+    case 'verify': {
+      const txt={verified:'已核验 → 升 L3',refuted:'被推翻',unverifiable:'无法核查'}[m.status]||m.status;
+      const el=document.createElement('div'); el.className='card';
+      el.innerHTML=`<h4>核验 <span class="vf vf-${m.status}">${txt}</span></h4>
+        <div style="font-size:13.5px">${esc(m.what||'')}</div>
+        ${m.source?`<span class="src">${esc(m.source)}</span>`:''}
+        ${m.why?`<div class="sub">${esc(m.why)}</div>`:''}
+        ${m.note?`<div class="sub">${esc(m.note)}</div>`:''}`;
+      mount(el,false); break;
+    }
+
+    case 'verdict': {
+      const d=m.data||{};
+      const pile=(cls,title,arr)=>`<div class="pile ${cls}"><b>${title}</b>
+        <ul>${(arr||[]).map(x=>`<li>${esc(x)}</li>`).join('')||'<li>—</li>'}</ul></div>`;
+      const el=document.createElement('div'); el.className='card';
+      el.style.borderColor='rgba(43,108,246,.35)';
+      el.innerHTML=`<h4>裁决 · 按证据质量,不按票数</h4>
+        <div class="concl" style="font-size:16px">${esc(d.verdict)}</div>
+        ${d.why?`<div class="sub">${esc(d.why)}</div>`:''}
+        <div class="sub" style="margin-top:8px">${(d.ranking||[]).map(r=>
+          `提案 ${esc(r.label)} 证据分 ${r.score} · 权重 ${r.weight} · L3 ${r.l3} 条`).join('<br>')}</div>
+        <div class="piles">
+          ${pile('confirmed','已证实(有 L3 撑)','confirmed' in d?d.confirmed:[])}
+          ${pile('refuted','已推翻','refuted' in d?d.refuted:[])}
+          ${pile('unverifiable','无法核查','unverifiable' in d?d.unverifiable:[])}
+        </div>
+        ${d.dissent&&d.dissent.length?
+          `<div class="sub" style="margin-top:10px;color:#ffcf7a">残留异议:${esc(d.dissent.join(' / '))}</div>`:''}
+        <div class="sub">置信度 ${esc(d.confidence||'?')}</div>`;
+      mount(el,true); break;
+    }
+  }
 }
 
 function setLive(on){
-  statusEl.textContent = on ? '开会中…' : '待命';
-  statusEl.classList.toggle('live', on);
-  sendBtn.disabled = on;
+  statusEl.textContent=on?'进行中…':'待命';
+  statusEl.classList.toggle('live',on);
+  sendBtn.disabled=on;
 }
 
-// ---------- SSE ----------
 function connect(){
-  const es = new EventSource('/stream');
-  es.onmessage = e => {
-    const m = JSON.parse(e.data);
-    if (m.who === 'typing'){ setLive(true); showTyping(m.name); return; }
-    clearTyping();
-    addMsg(m);
-    if (m.who === 'user') setLive(true);
-    if (m.who === 'system' && /散会|清空/.test(m.text)) setLive(false);
-    if (m.who === 'error') setLive(false);
+  const es=new EventSource('/stream');
+  es.onmessage=e=>{
+    const m=JSON.parse(e.data);
+    if(m.who==='user') setLive(true);
+    render(m);
+    if(m.who==='system'&&/结束|散会|清空/.test(m.text)) setLive(false);
+    if(m.who==='error') setLive(false);
   };
-  es.onerror = () => { statusEl.textContent = '连接断开,重连中…'; };
+  es.onerror=()=>{ statusEl.textContent='连接断开,重连中…'; };
 }
 connect();
 
-// ---------- 发送 ----------
 async function send(){
-  const text = input.value.trim();
-  if (!text || sendBtn.disabled) return;
-  input.value = '';
-  input.style.height = 'auto';
-  const r = await fetch('/say', {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({text})
-  });
-  const j = await r.json();
-  if (!j.ok) toast(j.msg);
+  const text=input.value.trim();
+  if(!text||sendBtn.disabled) return;
+  input.value=''; input.style.height='auto';
+  const r=await fetch('/say',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({text})});
+  const j=await r.json();
+  if(!j.ok) toast(j.msg);
 }
-sendBtn.onclick = send;
-input.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); send(); }
-});
-input.addEventListener('input', () => {
-  input.style.height = 'auto';
-  input.style.height = Math.min(input.scrollHeight, 140) + 'px';
-});
-
-document.querySelectorAll('.chip').forEach(c => c.onclick = () => {
-  input.value = c.textContent;
-  input.focus();
-  input.dispatchEvent(new Event('input'));
-});
-
-document.getElementById('reset').onclick = async () => {
-  clearTyping();
-  const r = await fetch('/reset', {method:'POST'});
-  const j = await r.json();
-  if (j.ok){ seen.clear(); feed.innerHTML = ''; feed.appendChild(empty); empty.style.display = ''; setLive(false); }
-  else toast(j.msg);
+sendBtn.onclick=send;
+input.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();} });
+input.addEventListener('input',()=>{ input.style.height='auto';
+  input.style.height=Math.min(input.scrollHeight,140)+'px'; });
+document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{
+  input.value=c.textContent; input.focus(); input.dispatchEvent(new Event('input')); });
+document.getElementById('reset').onclick=async()=>{
+  const r=await fetch('/reset',{method:'POST'}); const j=await r.json();
+  if(j.ok){ seen.clear(); feed.innerHTML=''; feed.appendChild(empty);
+    empty.style.display=''; setLive(false); } else toast(j.msg);
 };
-
-let toastTimer;
-function toast(t){
-  const el = document.getElementById('toast');
-  el.textContent = t; el.classList.add('on');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('on'), 1800);
-}
+let tt;
+function toast(t){ const el=document.getElementById('toast');
+  el.textContent=t; el.classList.add('on');
+  clearTimeout(tt); tt=setTimeout(()=>el.classList.remove('on'),2000); }
 </script>
 </body>
 </html>
